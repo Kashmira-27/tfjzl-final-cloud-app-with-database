@@ -3,35 +3,52 @@
 <head>
     <meta charset="UTF-8">
     {% load static %}
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <link rel="stylesheet"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
 
 <body>
 
 <nav class="navbar navbar-light bg-light">
     <div class="container-fluid">
+
         <div class="navbar-header">
-            <a class="navbar-brand" href="{% url 'onlinecourse:index' %}">Home</a>
+            <a class="navbar-brand"
+               href="{% url 'onlinecourse:index' %}">
+                Home
+            </a>
         </div>
 
         <ul class="nav navbar-nav navbar-right">
+
             {% if user.is_authenticated %}
             <li>
                 <a class="btn btn-link" href="#">
                     {{ user.first_name }}({{ user.username }})
                 </a>
-                <a class="btn btn-link" href="{% url 'onlinecourse:logout' %}">
+
+                <a class="btn btn-link"
+                   href="{% url 'onlinecourse:logout' %}">
                     Logout
                 </a>
             </li>
+
             {% else %}
+
             <li>
                 <form class="form-inline"
                       action="{% url 'onlinecourse:login' %}"
                       method="post">
+
                     {% csrf_token %}
 
                     <div class="input-group">
+
                         <input type="text"
                                class="form-control"
                                placeholder="Username"
@@ -42,7 +59,8 @@
                                placeholder="Password"
                                name="psw">
 
-                        <button class="btn btn-primary" type="submit">
+                        <button class="btn btn-primary"
+                                type="submit">
                             Login
                         </button>
 
@@ -50,73 +68,102 @@
                            href="{% url 'onlinecourse:registration' %}">
                             Sign Up
                         </a>
+
                     </div>
                 </form>
             </li>
+
             {% endif %}
+
         </ul>
     </div>
 </nav>
 
 
-<div class="container-fluid">
+<div class="container-fluid mt-3">
 
-    {% if total_score > 80 %}
-        <div class="alert alert-success">
-            <h5>Congratulations!</h5>
-            <p>You passed the exam.</p>
-            <p>Your score: <strong>{{ total_score }}</strong></p>
-        </div>
+    {% if grade > 80 %}
+
+    <div class="alert alert-success">
+        <b>Congratulations, {{ user.first_name }}!</b>
+        You have passed the exam and completed the course
+        with score {{ grade }}/100
+    </div>
+
     {% else %}
-        <div class="alert alert-danger">
-            <h5>Exam Result</h5>
-            <p>You did not pass the exam.</p>
-            <p>Your score: <strong>{{ total_score }}</strong></p>
-        </div>
 
-        <a class="btn btn-link text-danger"
-           href="{% url 'onlinecourse:course_details' course.id %}">
-            Re-test
-        </a>
+    <div class="alert alert-danger">
+        <b>Failed</b>
+        Sorry, {{ user.first_name }}!
+        You have failed the exam with score {{ grade }}/100
+    </div>
+
+    <a class="btn btn-link text-danger"
+       href="{% url 'onlinecourse:course_details' course.id %}">
+        Re-test
+    </a>
+
     {% endif %}
 
 
-    <div class="card-columns-vertical mt-1">
+    <div class="card-columns-vertical mt-3">
 
         <h5>Exam results</h5>
 
-        {% for result in question_results %}
+        {% for question in course.question_set.all %}
 
-            <div class="card mt-2">
+        <div class="card mt-1">
 
-                <div class="card-header">
-                    <h6>{{ result.question.content }}</h6>
-                </div>
+            <div class="card-header">
+                <h5>{{ question.content }}</h5>
+            </div>
 
-                <div class="card-body">
+            <div class="form-group p-3">
 
-                    {% for choice in result.selected_choice %}
-                        <p>
-                            <strong>Your answer:</strong>
-                            {{ choice.content }}
-                        </p>
+                {% for choice in question.choice_set.all %}
 
-                        {% if choice.is_correct %}
-                            <span class="badge badge-success">
-                                Correct
-                            </span>
+                <div class="form-check">
+
+                    {% if choice.is_correct and choice in choices %}
+
+                    <div class="text-success">
+                        Correct answer: {{ choice.content }}
+                    </div>
+
+                    {% else %}
+
+                        {% if choice.is_correct and not choice in choices %}
+
+                        <div class="text-warning">
+                            Not selected: {{ choice.content }}
+                        </div>
+
                         {% else %}
-                            <span class="badge badge-danger">
-                                Incorrect
-                            </span>
+
+                            {% if not choice.is_correct and choice in choices %}
+
+                            <div class="text-danger">
+                                Wrong answer: {{ choice.content }}
+                            </div>
+
+                            {% else %}
+
+                            <div>
+                                {{ choice.content }}
+                            </div>
+
+                            {% endif %}
+
                         {% endif %}
-                    {% empty %}
-                        <p>No answer selected.</p>
-                    {% endfor %}
+
+                    {% endif %}
 
                 </div>
+
+                {% endfor %}
 
             </div>
+        </div>
 
         {% endfor %}
 

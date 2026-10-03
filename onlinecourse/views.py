@@ -181,7 +181,8 @@ def submit(request, course_id):
     user = request.user
 
     # Get the enrollment for the current user and course
-    enrollment = Enrollment.objects.get(
+    enrollment = get_object_or_404(
+        Enrollment,
         user=user,
         course=course
     )
@@ -191,19 +192,22 @@ def submit(request, course_id):
         enrollment=enrollment
     )
 
-    # Collect selected choices from the exam form
-    choices = extract_answers(request)
+    # Collect selected choice IDs
+    choice_ids = extract_answers(request)
 
-    # Add selected choices to the submission
-    submission.choices.set(choices)
+    # Get the actual Choice objects
+    selected_choices = Choice.objects.filter(
+        id__in=choice_ids
+    )
+
+    # Save selected choices to the submission
+    submission.choices.set(selected_choices)
 
     # Redirect to exam result
-    submission_id = submission.id
-
     return HttpResponseRedirect(
         reverse(
             viewname='onlinecourse:exam_result',
-            args=(course_id, submission_id)
+            args=(course_id, submission.id)
         )
     )
 
@@ -212,55 +216,60 @@ def submit(request, course_id):
 def extract_answers(request):
     submitted_answers = []
 
-    for key in request.POST:
+    for key, value in request.POST.items():
 
-        if key.startswith('choice'):
-
-            value = request.POST[key]
-            choice_id = int(value)
-
-            submitted_answers.append(choice_id)
+        if key.startswith('choice_'):
+            try:
+                choice_id = int(value)
+                submitted_answers.append(choice_id)
+            except (ValueError, TypeError):
+                pass
 
     return submitted_answers
 
 
 # Show exam result
 def show_exam_result(request, course_id, submission_id):
-    context = {}
-
     course = get_object_or_404(
         Course,
         pk=course_id
     )
 
-    submission = Submission.objects.get(
-        id=submission_id
+    submission = get_object_or_404(
+        Submission,
+        pk=submission_id
     )
 
+    # Get the choices selected by the learner
     choices = submission.choices.all()
 
+    # Calculate total score
     total_score = 0
 
     questions = course.question_set.all()
 
     for question in questions:
 
+        # All correct choices for this question
         correct_choices = question.choice_set.filter(
             is_correct=True
         )
 
+        # Choices selected by the learner for this question
         selected_choices = choices.filter(
             question=question
         )
 
-        # Award the grade only when all correct choices
-        # are selected and no incorrect choice is selected.
+        # Award marks only when the selected choices
+        # exactly match all correct choices
         if set(correct_choices) == set(selected_choices):
             total_score += question.grade
 
-    context['course'] = course
-    context['grade'] = total_score
-    context['choices'] = choices
+    context = {
+        'course': course,
+        'grade': total_score,
+        'choices': choices,
+    }
 
     return render(
         request,
